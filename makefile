@@ -2,7 +2,7 @@ CC=gcc
 
 CSRC=$(shell find ./ -type f -name "*.c")
 COBJ=$(patsubst %.c, %.o, $(CSRC))
-OUTPUT=test
+OUTPUT=src/test
 
 run: $(OUTPUT)
 	@./$<
