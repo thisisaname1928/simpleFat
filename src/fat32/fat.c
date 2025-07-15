@@ -16,7 +16,7 @@ char *readBuffer;
 uint32_t bufferSize;
 int (*readDiskSimpleFat32)(uint32_t sector) = 0;
 int isInitialized = 0;
-uint32_t currentSector;
+uint32_t currentSector = 0;
 
 BiosParamaterBlock BPB;
 FSInfo infoFS;
@@ -33,15 +33,23 @@ uint32_t firstDataSector;
   return val
 
 #define readAndCheck(sector, val)                                              \
+                                                                               \
   if (!readDiskSimpleFat32(sector))                                            \
-    return val;                                                                \
-  else                                                                         \
-    currentSector = sector
+    return val;
+
+int readHelper(uint32_t sector) {
+  if (currentSector != sector) {
+    currentSector = sector;
+    return readDiskSimpleFat32(sector);
+  }
+
+  return 1;
+}
 
 uint32_t cluster2sector(uint32_t index) { return firstDataSector + index - 2; }
 
 uint32_t readFAT32(uint32_t Offset, uint8_t index) {
-  uint32_t sector = index * 4 / BPB.bytesPerSector;
+  uint32_t sector = index * 4 / BPB.BPB_BytsPerSec;
   uint32_t base = index * 4;
   readAndCheck(Offset + sector, 0);
 
@@ -64,7 +72,7 @@ int parseFAT32Entry(uint32_t f) {
 }
 
 int getFSInfo() {
-  readAndCheck(BPB.fat32FSInfoPtr, FAT32_READ_FAIL);
+  readAndCheck(BPB.BPB_FSInfo, FAT32_READ_FAIL);
 
   FSInfo *f = (FSInfo *)readBuffer;
 
@@ -75,36 +83,58 @@ int getFSInfo() {
   return 1;
 }
 
+int checkAttrInfo(uint8_t attr, uint8_t attrType) {
+  return (attr & attrType) == attrType;
+}
+
+int parseDirEntry(uint32_t cluster) {
+  readAndCheck(cluster2sector(cluster), 1991);
+
+  FAT32Dir *d = (FAT32Dir *)readBuffer;
+  if (d->name[0] == 0) {
+    printf("ISN'T a valid");
+    return -1;
+  }
+
+  if ((uint8_t)d->name[0] == 0xe5) {
+    if (checkAttrInfo(d->attr, LONG_FILE_NAME_ATTRIBUTE)) {
+    }
+  }
+
+  return 1;
+}
+
 int verifyFat32() {
+  readDiskSimpleFat32(512);
+  currentSector = 0;
   readAndCheck(0, 0);
   BiosParamaterBlock *b = (BiosParamaterBlock *)readBuffer;
 
-  if (b->fat32Signature != FAT32_SIGNATURE1 &&
-      b->fat32Signature != FAT32_SIGNATURE2) {
+  if (b->BS_BootSig != FAT32_SIGNATURE1 && b->BS_BootSig != FAT32_SIGNATURE2) {
 
     return 0;
   }
   BPB = *b;
 
   // get number of sectors
-  if (BPB.totalSectorsFat == 0)
-    numberOfSectors = BPB.totalSectorsFatLarge;
+  if (BPB.BPB_TotSec16 == 0)
+    numberOfSectors = BPB.BPB_TotSec32;
   else
-    numberOfSectors = BPB.totalSectorsFat;
+    numberOfSectors = BPB.BPB_TotSec16;
 
-  printf("Volume string: %s\n", printl(BPB.fat32VolumeName, 8));
-  printf("Bytes per sector: %d\n", BPB.bytesPerSector);
-  printf("reversed sector: %d\n", BPB.numberOfReservedSector);
-  printf("Cluster size: %d\n", BPB.sectorsPerCluster * BPB.bytesPerSector);
+  printf("Volume string: %s\n", printl(BPB.BS_VolLab, 8));
+  printf("Bytes per sector: %d\n", BPB.BPB_BytsPerSec);
+  printf("reversed sector: %d\n", BPB.BPB_RsvdSecCnt);
+  printf("Cluster size: %d\n", BPB.BPB_SecPerClus * BPB.BPB_BytsPerSec);
 
-  printf("Found FSInfo at sector: %d\n", BPB.fat32FSInfoPtr);
+  printf("Found FSInfo at sector: %d\n", BPB.BPB_FSInfo);
 
-  fatOffset = BPB.numberOfReservedSector;
+  fatOffset = BPB.BPB_RsvdSecCnt;
 
-  if (BPB.bytesPerSector != 512)
+  if (BPB.BPB_BytsPerSec != 512)
     return FAT32_TOO_SIMPLE_NOT_SUPPORT; // this only handle 512 bytes sector
 
-  clusterSize = BPB.sectorsPerCluster * BPB.bytesPerSector;
+  clusterSize = BPB.BPB_SecPerClus * BPB.BPB_BytsPerSec;
 
   int s = getFSInfo();
   if (s != 1)
@@ -112,26 +142,38 @@ int verifyFat32() {
 
   printf("first cluster: %d\n", infoFS.searchOffsetCluster);
   printf("usable space: %d\n", clusterSize * numberOfSectors / 1024 / 1024);
-  printf("number of FAT: %d\n", BPB.numberOfFat);
-  printf("FAT entries: %d\n", BPB.fat32SectorsPerFat * BPB.bytesPerSector / 4);
+  printf("number of FAT: %d\n", BPB.BPB_NumFATs);
+  printf("sector per fat: %d\n", BPB.BPB_FATSz32);
+  printf("FAT entries: %d\n", BPB.BPB_FATSz32 * (BPB.BPB_BytsPerSec / 4));
 
   printf("%x\n", readFAT32(fatOffset, 2));
 
-  firstDataSector = fatOffset + BPB.fat32SectorsPerFat * BPB.numberOfFat;
+  firstDataSector = fatOffset + BPB.BPB_FATSz32 * BPB.BPB_NumFATs;
 
   printf("FFF: %x\n", firstDataSector * 512);
 
   // some test
-  printf("Root Dir at cluster: %d\n", BPB.fat32RootClusters);
+  printf("Root Dir at cluster: %d\n", BPB.BPB_RootClus);
 
   FAT32Dir *d;
-  readAndCheck(cluster2sector(BPB.fat32RootClusters), -100);
+  readAndCheck(cluster2sector(BPB.BPB_RootClus), -100);
 
   d = (FAT32Dir *)readBuffer;
-  printf("%s\nfile size: %d\n", d->name, d->fileSize);
+  printf("%s\nfile size: %d\n%x\n", d->name, d->fileSize, d->attr);
 
-  printf("Root Dir FAT32 ENTRY: 0x%x\n",
-         readFAT32(fatOffset, BPB.fat32RootClusters));
+  printf("Root Dir FAT32 ENTRY: %x\n", readFAT32(fatOffset, BPB.BPB_RootClus));
+
+  printf("cluster l: %x\n", (d->nextClusterHigh) | (d->nextClusterLow << 16));
+
+  return parseDirEntry(BPB.BPB_RootClus);
+
+  // for (int i = 0; i < BPB.BPB_TotSec16 Large; i++) {
+  //   readAndCheck(cluster2sector(i), -182828292);
+  //   FAT32Dir *d = (FAT32Dir *)readBuffer;
+  //   if (checkAttrInfo(d->attr, FAT32_SYSTEM)) {
+  //     printf("name: %s\n", d->name);
+  //   }
+  // }
 
   return 1;
 }
