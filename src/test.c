@@ -34,6 +34,9 @@ int main() {
 
   int out = initSimpleFat32(malloc, ifree, fbuf, getSector, 512);
 
-  printf("RETURN: %d\n", out);
+  while (listDir() != 0) {
+    readShortDirName();
+    printf("%s\n", shortNameRes);
+  }
   return 0;
 }

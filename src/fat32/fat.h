@@ -123,5 +123,11 @@ int verifyFat32();
 int readFile(const char *INP, char *buffer);
 uint32_t readFileSize(const char *INP);
 int openFolder(const char *INP);
+int listDir();
+void readShortDirName();
+int checkAttrInfo(uint8_t attr, uint8_t attrType);
+
+extern FAT32Dir resultDir;
+extern char shortNameRes[13];
 
 #endif
