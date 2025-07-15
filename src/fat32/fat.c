@@ -1,17 +1,22 @@
+/*
+   Copyright 2025 QUOC TRUNG NGUYEN
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
 #include "fat.h"
 #include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#include <strings.h>
 
 char buffer[512];
-char *printl(char *i, int l) {
-
-  memcpy(buffer, i, l);
-  buffer[l] = 0;
-
-  return &buffer[0];
-}
 
 char *readBuffer;
 void *(*iMalloc)(uint32_t);
@@ -101,7 +106,6 @@ int parseDirEntry(uint32_t cluster) {
 
   FAT32Dir *d = (FAT32Dir *)readBuffer;
   if (d->DIR_Name[0] == 0) {
-    printf("ISN'T a valid");
     return -1;
   }
 
@@ -183,7 +187,6 @@ int listDir() {
       currentIndex = 0;
       return 0;
     } else { // if there is more
-      printf("OPEN: %d\n", readFAT32(fatOffset, currentCluster));
       open(readFAT32(fatOffset, currentCluster));
       return 1;
     }
@@ -337,7 +340,6 @@ int readFile(const char *INP, char *buffer) {
   while (readSize < fileSize) {
     // read current cluster
     int s = readCluster(clus);
-    printf("read clus: %d\n", clus);
     if (!s) {
       return 0;
     }
@@ -384,13 +386,6 @@ int verifyFat32() {
   else
     numberOfSectors = BPB.BPB_TotSec16;
 
-  printf("Volume string: %s\n", printl(BPB.BS_VolLab, 8));
-  printf("Bytes per sector: %d\n", BPB.BPB_BytsPerSec);
-  printf("reversed sector: %d\n", BPB.BPB_RsvdSecCnt);
-  printf("Cluster size: %d\n", BPB.BPB_SecPerClus * BPB.BPB_BytsPerSec);
-
-  printf("Found FSInfo at sector: %d\n", BPB.BPB_FSInfo);
-
   fatOffset = BPB.BPB_RsvdSecCnt;
 
   if (BPB.BPB_BytsPerSec != 512)
@@ -402,48 +397,9 @@ int verifyFat32() {
   if (s != 1)
     return s;
 
-  printf("first cluster: %d\n", infoFS.FSI_Nxt_Free);
-  printf("usable space: %d\n", clusterSize * numberOfSectors / 1024 / 1024);
-  printf("number of FAT: %d\n", BPB.BPB_NumFATs);
-  printf("sector per fat: %d\n", BPB.BPB_FATSz32);
-  printf("FAT entries: %d\n", BPB.BPB_FATSz32 * (BPB.BPB_BytsPerSec / 4));
-
-  printf("%x\n", readFAT32(fatOffset, 2));
-
   firstDataSector = fatOffset + BPB.BPB_FATSz32 * BPB.BPB_NumFATs;
 
-  printf("FFF: %x\n", firstDataSector * 512);
-
-  // some test
-  printf("Root Dir at cluster: %d\n", BPB.BPB_RootClus);
-
-  open(BPB.BPB_RootClus);
-  // while (listDir() != 0) {
-  //   if (!checkAttrInfo(resultDir.DIR_Attr, LONG_FILE_NAME_ATTRIBUTE)) {
-  //     readShortDirName();
-  //     printf("%s\n", shortNameRes);
-  //   }
-  // }
-  // restore();
-  backup();
-  while (listDir() != 0) {
-    if (!checkAttrInfo(resultDir.DIR_Attr, LONG_FILE_NAME_ATTRIBUTE)) {
-      readShortDirName();
-      printf("%s\n", shortNameRes);
-    }
-  }
-  restore();
-
-  uint32_t fs = readFileSize("LICENSE");
-  printf("FS: %d\n", fs);
-
-  char *i = iMalloc(fs + 10);
-
-  printf("res: %d\n", readFile("LICENSE", i));
-
-  for (int j = 0; j < fs; j++) {
-    printf("%c", i[j]);
-  }
+  open(BPB.BPB_RootClus); // mount root cluster
 
   return 1;
 }
