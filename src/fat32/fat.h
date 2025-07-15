@@ -38,7 +38,7 @@ typedef struct {
 #define SECCOND_SIGNATURE 0x61417272
 #define TRAIL_SIGNATURE 0xAA550000
 #define NO_HINT 0xFFFFFFFF
-#define FAT32_SIGNATURE1 0x28
+#define FAT32_FSI_LeadSig 0x28
 #define FAT32_SIGNATURE2 0x29
 
 #define FAT32_NO_MORE_CLUSTER 123
@@ -61,13 +61,13 @@ typedef struct {
 #define FAT32_ERROR_NO_HINT -4
 
 typedef struct __attribute__((packed)) {
-  uint32_t signature1;
+  uint32_t FSI_LeadSig;
   char reserved[480];
-  uint32_t signature2;
-  uint32_t lastFreeCluster;
-  uint32_t searchOffsetCluster;
+  uint32_t FSI_StrucSig;
+  uint32_t FSI_Free_Count;
+  uint32_t FSI_Nxt_Free;
   char reserved1[12];
-  uint32_t trailSignature;
+  uint32_t FSI_TrailSig;
 } FSInfo;
 
 typedef struct __attribute__((packed)) {
@@ -81,20 +81,19 @@ typedef struct __attribute__((packed)) {
 } longFileNameExt;
 
 typedef struct __attribute__((packed)) {
-  char name[8];
-  char ext[3];
-  uint8_t attr;
+  char DIR_Name[8];
+  char DiR_Ext[3];
+  uint8_t DIR_Attr;
   uint8_t reserved;
-  uint8_t creationTime;
-  uint16_t time;
-  uint16_t date;
-  uint16_t lastAccessDate;
-  uint16_t nextClusterLow;
-  uint16_t lastModTime;
-  uint16_t lastModDate;
-  uint16_t nextClusterHigh;
-  uint32_t fileSize;
-  longFileNameExt longName;
+  uint8_t DIR_CrtTimeTenth;
+  uint16_t DIR_CrtTime;
+  uint16_t DIR_CrtDate;
+  uint16_t DIR_LstAccDate;
+  uint16_t DIR_FstClusHI;
+  uint16_t DIR_WrtTime;
+  uint16_t DIR_WrtDate;
+  uint16_t DIR_FstClusLO;
+  uint32_t DIR_FileSize;
 } FAT32Dir;
 
 #define LONG_FILE_NAME_ATTRIBUTE 0x0f
