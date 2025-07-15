@@ -59,6 +59,7 @@ typedef struct {
 #define FAT32_TOO_SIMPLE_NOT_SUPPORT -1
 #define FAT32_READ_FAIL -2
 #define FAT32_ERROR_NO_HINT -4
+#define FAT32_DIRECTORY_FREE -198
 
 typedef struct __attribute__((packed)) {
   uint32_t FSI_LeadSig;
@@ -71,18 +72,19 @@ typedef struct __attribute__((packed)) {
 } FSInfo;
 
 typedef struct __attribute__((packed)) {
-  uint8_t namePtr;
-  uint16_t first5Name[5];
-  uint8_t attr;
-  uint8_t longEntryType;
-  uint8_t checkSum;
-  uint16_t next6Name[6];
+  uint8_t LDIR_Ord;
+  uint16_t LDIR_Name1[5];
+  uint8_t LDIR_Attr;
+  uint8_t LDIR_Type;
+  uint8_t LDIR_Chksum;
+  uint16_t LDIR_Name2[6];
   uint16_t reserved;
+  uint16_t LDIR_Name3[2];
 } longFileNameExt;
 
 typedef struct __attribute__((packed)) {
   char DIR_Name[8];
-  char DiR_Ext[3];
+  char DIR_Ext[3];
   uint8_t DIR_Attr;
   uint8_t reserved;
   uint8_t DIR_CrtTimeTenth;
@@ -98,7 +100,8 @@ typedef struct __attribute__((packed)) {
 
 #define LONG_FILE_NAME_ATTRIBUTE 0x0f
 
-int initSimpleFat32(char *readBuffer, void *readFuncPtr, uint32_t sizeOfBuffer);
+int initSimpleFat32(void *imalloc, void *ifree, char *readBuffer,
+                    void *readFuncPtr, uint32_t sizeOfBuffer);
 
 int verifyFat32();
 
