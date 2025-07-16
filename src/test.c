@@ -34,9 +34,18 @@ int main() {
 
   int out = initSimpleFat32(malloc, ifree, fbuf, getSector, 512);
 
+  backup();
   while (listDir() != 0) {
     readShortDirName();
     printf("%s\n", shortNameRes);
   }
+  restore();
+  openFolder("TEST");
+  backup();
+  while (listDir() != 0) {
+    readShortDirName();
+    printf("%s\n", shortNameRes);
+  }
+  restore();
   return 0;
 }

@@ -42,7 +42,7 @@ uint32_t firstDataSector;
 
 #define readAndCheck(sector, val)                                              \
                                                                                \
-  if (!readDiskSimpleFat32(sector))                                            \
+  if (!readHelper(sector))                                                     \
     return val;
 
 int readHelper(uint32_t sector) {
@@ -369,7 +369,7 @@ int readFile(const char *INP, char *buffer) {
 }
 
 int verifyFat32() {
-  readDiskSimpleFat32(512);
+  readDiskSimpleFat32(0);
   currentSector = 0;
   readAndCheck(0, 0);
   BiosParamaterBlock *b = (BiosParamaterBlock *)readBuffer;
